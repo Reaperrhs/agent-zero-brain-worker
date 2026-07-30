@@ -1,0 +1,12 @@
+name: brain_worker
+title: Brain-Worker Architecture
+description: >
+  Brain-Worker architecture. Agent 0 (Kimi K3) acts as orchestrator only,
+  delegates all work to subordinates running GLM 5.2 as the worker model.
+version: 1.0.0
+author: Agent Zero
+settings_sections:
+  - agent
+always_enabled: false
+per_project_config: false
+per_agent_config: false
