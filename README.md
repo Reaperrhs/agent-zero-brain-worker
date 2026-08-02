@@ -4,7 +4,7 @@ A Brain-Worker architecture plugin for [Agent Zero](https://github.com/frdel/age
 
 ## What It Does
 
-- **Agent 0 (Orchestrator)** — Receives tasks from the user, breaks them into subtasks, delegates each to a worker subordinate, collects results, and presents the final answer. The orchestrator is **enforced** via system prompt injection to never execute code, write files, or use terminal tools directly.
+- **Agent 0 (Orchestrator)** — Receives tasks from the user, breaks them into subtasks, delegates each to a worker subordinate, collects results, and presents the final answer. The orchestrator behavior is **enforced** via system prompt injection (can be toggled off with `orchestrator_enforce: false`).
 - **Worker Subordinates** — Spawned via `call_subordinate` with `profile: "worker"`. Their chat model is automatically swapped to GLM 5.2 (or whatever you configure), and their utility model is swapped to a configurable utility endpoint.
 
 This lets you run a powerful reasoning model as the brain (orchestrator) while keeping execution costs low by routing all coding/terminal/file operations through cheaper worker models.
@@ -49,9 +49,13 @@ Appends a mandatory orchestrator-only system prompt to Agent 0 (agent number 0).
 - Only use planning/research tools (`search_engine`, `memory_load`, `goal`, etc.)
 - Break tasks into subtasks, delegate, collect, synthesize
 
+> **Since v1.1.0:** The extension reads the `orchestrator_enforce` setting from the plugin config. Set it to `false` to disable orchestrator-only prompt injection while keeping model swapping active.
+
 ## Configuration
 
 All configuration lives in `config.json` at the plugin root. You can edit it directly or via the **Settings → Agent → Brain-Worker Architecture** panel in the WebUI.
+
+The plugin also ships a `default_config.yaml` that provides factory defaults used by the framework's WebUI reset-to-defaults functionality.
 
 ```json
 {
@@ -69,7 +73,7 @@ All configuration lives in `config.json` at the plugin root. You can edit it dir
     "worker_utility_model": {
         "provider": "other",
         "name": "free-stack-Utility",
-        "api_base": "https://omniroute.onekindpromo.com",
+        "api_base": "https://omniroute.onekindpromo.com/v1",
         "ctx_length": 128000,
         "ctx_input": 0.7
     },
@@ -90,7 +94,7 @@ All configuration lives in `config.json` at the plugin root. You can edit it dir
 | `worker_chat_model.rl_input` | Rate limit: input tokens per minute (0 = unlimited) | `0` |
 | `worker_chat_model.rl_output` | Rate limit: output tokens per minute (0 = unlimited) | `0` |
 | `worker_utility_model.*` | Same fields as above, for utility model | Omniroute endpoint |
-| `orchestrator_enforce` | Whether to inject orchestrator-only system prompt for Agent 0 | `true` |
+| `orchestrator_enforce` | Inject orchestrator-only system prompt for Agent 0 (set `false` to disable) | `true` |
 
 > **Note:** The orchestrator (Agent 0) model is **not** controlled by this plugin. Configure it normally via **Settings → Model Configuration** in the Agent Zero UI.
 
@@ -115,6 +119,10 @@ context: |
 ```
 
 This profile is activated when the orchestrator calls `call_subordinate` with `profile: "worker"`.
+
+### Worker Output Formatting
+
+Since v1.1.0, the worker profile includes a hardened **OUTPUT FORMAT** anchor section that instructs the worker model to always emit a single raw JSON object — no markdown fences, no prose before or after, and reasoning confined to the `thoughts` array. This prevents first-generation misformat warnings where some models wrap their first response in code fences or emit planning prose instead of immediately calling a tool.
 
 ## Architecture Overview
 

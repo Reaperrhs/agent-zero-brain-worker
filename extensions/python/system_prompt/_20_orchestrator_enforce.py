@@ -45,4 +45,8 @@ class OrchestratorEnforce(Extension):
         enabled = plugins.get_enabled_plugins(self.agent)
         if PLUGIN_NAME not in enabled:
             return
+        # Check if orchestrator enforcement is enabled in config
+        cfg = plugins.get_plugin_config(PLUGIN_NAME, agent=self.agent) or {}
+        if not cfg.get("orchestrator_enforce", True):
+            return
         system_prompt.append(ORCHESTRATOR_PROMPT)
