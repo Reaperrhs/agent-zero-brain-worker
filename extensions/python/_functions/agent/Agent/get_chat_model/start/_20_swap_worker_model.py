@@ -10,7 +10,7 @@ def _is_enabled(agent) -> bool:
 
 
 def _build_glm_model(agent):
-    """Build a GLM 5.2 chat model for worker subordinates."""
+    """Build the worker chat model (uses the model configured in the Model Config plugin UI active preset) for worker subordinates."""
     import models
     from helpers import plugins as plg
 

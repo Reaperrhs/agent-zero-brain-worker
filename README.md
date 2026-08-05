@@ -1,11 +1,11 @@
 # Brain-Worker Architecture Plugin for Agent Zero
 
-A Brain-Worker architecture plugin for [Agent Zero](https://github.com/frdel/agent-zero). Agent 0 acts as a pure **orchestrator** that plans, delegates, and synthesizes — while all actual work is executed by **worker** subordinates running on a cost-effective model (GLM 5.2 by default).
+A Brain-Worker architecture plugin for [Agent Zero](https://github.com/frdel/agent-zero). Agent 0 acts as a pure **orchestrator** that plans, delegates, and synthesizes — while all actual work is executed by **worker** subordinates running on a cost-effective model (the model configured in the Model Config plugin UI (active preset) by default).
 
 ## What It Does
 
-- **Agent 0 (Orchestrator)** — Receives tasks from the user, breaks them into subtasks, delegates each to a worker subordinate, collects results, and presents the final answer. The orchestrator behavior is **enforced** via system prompt injection (can be toggled off with `orchestrator_enforce: false`).
-- **Worker Subordinates** — Spawned via `call_subordinate` with `profile: "worker"`. Their chat model is automatically swapped to GLM 5.2 (or whatever you configure), and their utility model is swapped to a configurable utility endpoint.
+- **Agent 0 (Orchestrator)** — Receives tasks from the user, breaks them into subtasks, delegates each to a worker subordinate, collects results, and presents the final answer. The orchestrator is **enforced** via system prompt injection to never execute code, write files, or use terminal tools directly.
+- **Worker Subordinates** — Spawned via `call_subordinate` with `profile: "worker"`. Their chat model is automatically swapped to the model configured in the Model Config plugin UI (active preset) (or whatever you configure), and their utility model is swapped to a configurable utility endpoint.
 
 This lets you run a powerful reasoning model as the brain (orchestrator) while keeping execution costs low by routing all coding/terminal/file operations through cheaper worker models.
 
@@ -30,7 +30,7 @@ The plugin uses three framework extension hooks:
 
 **File:** `extensions/python/_functions/agent/Agent/get_chat_model/start/_20_swap_worker_model.py`
 
-Intercepts model creation for subordinate agents (agent number > 0). Instead of using the default model, it builds a fresh GLM 5.2 model from the plugin's `config.json` settings and returns it as the chat model.
+Intercepts model creation for subordinate agents (agent number > 0). Instead of using the default model, it builds a fresh the model configured in the Model Config plugin UI (active preset) model from the plugin's `config.json` settings and returns it as the chat model.
 
 ### 2. `get_utility_model/start` — Swap Worker Utility Model
 
@@ -49,13 +49,9 @@ Appends a mandatory orchestrator-only system prompt to Agent 0 (agent number 0).
 - Only use planning/research tools (`search_engine`, `memory_load`, `goal`, etc.)
 - Break tasks into subtasks, delegate, collect, synthesize
 
-> **Since v1.1.0:** The extension reads the `orchestrator_enforce` setting from the plugin config. Set it to `false` to disable orchestrator-only prompt injection while keeping model swapping active.
-
 ## Configuration
 
 All configuration lives in `config.json` at the plugin root. You can edit it directly or via the **Settings → Agent → Brain-Worker Architecture** panel in the WebUI.
-
-The plugin also ships a `default_config.yaml` that provides factory defaults used by the framework's WebUI reset-to-defaults functionality.
 
 ```json
 {
@@ -73,7 +69,7 @@ The plugin also ships a `default_config.yaml` that provides factory defaults use
     "worker_utility_model": {
         "provider": "other",
         "name": "free-stack-Utility",
-        "api_base": "https://omniroute.onekindpromo.com/v1",
+        "api_base": "https://omniroute.onekindpromo.com",
         "ctx_length": 128000,
         "ctx_input": 0.7
     },
@@ -94,7 +90,7 @@ The plugin also ships a `default_config.yaml` that provides factory defaults use
 | `worker_chat_model.rl_input` | Rate limit: input tokens per minute (0 = unlimited) | `0` |
 | `worker_chat_model.rl_output` | Rate limit: output tokens per minute (0 = unlimited) | `0` |
 | `worker_utility_model.*` | Same fields as above, for utility model | Omniroute endpoint |
-| `orchestrator_enforce` | Inject orchestrator-only system prompt for Agent 0 (set `false` to disable) | `true` |
+| `orchestrator_enforce` | Whether to inject orchestrator-only system prompt for Agent 0 | `true` |
 
 > **Note:** The orchestrator (Agent 0) model is **not** controlled by this plugin. Configure it normally via **Settings → Model Configuration** in the Agent Zero UI.
 
@@ -104,11 +100,11 @@ The `agents/worker/agent.yaml` file defines the worker subordinate profile:
 
 ```yaml
 title: Worker
-description: Worker agent for the Brain-Worker architecture. Executes tasks delegated by the orchestrator using GLM 5.2.
+description: Worker agent for the Brain-Worker architecture. Executes tasks delegated by the orchestrator using the model configured in the Model Config plugin UI (active preset).
 context: |
   You are a WORKER agent in the Brain-Worker architecture.
   You receive tasks from the orchestrator (Agent 0) and EXECUTE them.
-  Your model is GLM 5.2 — optimized for coding, terminal operations, and implementation.
+  Your model is the model configured in the Model Config plugin UI (active preset) — optimized for coding, terminal operations, and implementation.
 
   Rules:
   1. Execute tasks efficiently using code_execution_tool, text_editor, and other tools.
@@ -119,10 +115,6 @@ context: |
 ```
 
 This profile is activated when the orchestrator calls `call_subordinate` with `profile: "worker"`.
-
-### Worker Output Formatting
-
-Since v1.1.0, the worker profile includes a hardened **OUTPUT FORMAT** anchor section that instructs the worker model to always emit a single raw JSON object — no markdown fences, no prose before or after, and reasoning confined to the `thoughts` array. This prevents first-generation misformat warnings where some models wrap their first response in code fences or emit planning prose instead of immediately calling a tool.
 
 ## Architecture Overview
 
@@ -136,7 +128,7 @@ Since v1.1.0, the worker profile includes a hardened **OUTPUT FORMAT** anchor se
                    │ call_subordinate(profile: "worker")
                    ▼
 ┌─────────────────────────────────────────────┐
-│           Worker Subordinates (GLM 5.2)      │
+│           Worker Subordinates (the model configured in the Model Config plugin UI (active preset))      │
 │  Role: Execute code, terminal, file ops      │
 │  Tools: code_execution_tool, text_editor...  │
 └─────────────────────────────────────────────┘
